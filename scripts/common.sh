@@ -6,8 +6,6 @@ set -euxo pipefail
 
 # Kubernetes Variable Declaration
 KUBERNETES_VERSION="v1.34"
-CONTAINERD_VERSION="2.2.0"
-RUNC_VERSION="1.3.3"
 CRICTL_VERSION="v1.34.0"
 KUBERNETES_INSTALL_VERSION="1.34.0-1.1"
 
@@ -44,47 +42,17 @@ sudo apt-get install -y apt-transport-https ca-certificates curl gpg
 sudo apt-get update -y
 sudo apt-get install -y software-properties-common curl apt-transport-https ca-certificates
 
-# Download and install containerd
-curl -LO https://github.com/containerd/containerd/releases/download/v${CONTAINERD_VERSION}/containerd-${CONTAINERD_VERSION}-linux-amd64.tar.gz
-sudo tar Cxzvf /usr/local containerd-${CONTAINERD_VERSION}-linux-amd64.tar.gz
-rm containerd-${CONTAINERD_VERSION}-linux-amd64.tar.gz
 
-# Download and install runc
-curl -LO https://github.com/opencontainers/runc/releases/download/v${RUNC_VERSION}/runc.amd64
-sudo install -m 755 runc.amd64 /usr/local/sbin/runc
-rm runc.amd64
 
-# Configure containerd
-sudo mkdir -p /etc/containerd
-containerd config default | sudo tee /etc/containerd/config.toml
+sudo apt-get update
+sudo apt-get install ca-certificates curl gnupg
+sudo install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+sudo chmod a+r /etc/apt/keyrings/docker.gpg
 
-# Enable SystemdCgroup in containerd config
-sudo sed -i 's/SystemdCgroup = false/SystemdCgroup = true/' /etc/containerd/config.toml
-
-# Create containerd systemd service
-cat <<EOF | sudo tee /etc/systemd/system/containerd.service
-[Unit]
-Description=containerd container runtime
-Documentation=https://containerd.io
-After=network.target local-fs.target
-
-[Service]
-ExecStartPre=-/sbin/modprobe overlay
-ExecStart=/usr/local/bin/containerd
-Type=notify
-Delegate=yes
-KillMode=process
-Restart=always
-RestartSec=5
-LimitNPROC=infinity
-LimitCORE=infinity
-LimitNOFILE=infinity
-TasksMax=infinity
-OOMScoreAdjust=-999
-
-[Install]
-WantedBy=multi-user.target
-EOF
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+sudo apt-get update
+sudo apt-get install containerd.io
 
 sudo systemctl daemon-reload
 sudo systemctl enable containerd --now
@@ -92,10 +60,33 @@ sudo systemctl start containerd.service
 
 echo "Containerd runtime installed successfully"
 
+# Generate the default containerd configuration
+sudo containerd config default | sudo tee /etc/containerd/config.toml
+
+# Enable SystemdCgroup clear
+
+sudo sed -i 's/SystemdCgroup = false/SystemdCgroup = true/g' /etc/containerd/config.toml
+
+# Restart containerd to apply changes
+sudo systemctl restart containerd
+
+# Detect architecture for downloads (amd64 vs arm64)
+ARCH="$(dpkg --print-architecture)"
+case "$ARCH" in
+  amd64) CRICTL_ARCH="amd64" ;;
+  arm64) CRICTL_ARCH="arm64" ;;
+  *)
+    echo "Unsupported architecture: $ARCH"
+    exit 1
+    ;;
+esac
+
+CRICTL_VERSION="v1.35.0"
 # Install crictl
-curl -LO https://github.com/kubernetes-sigs/cri-tools/releases/download/${CRICTL_VERSION}/crictl-${CRICTL_VERSION}-linux-amd64.tar.gz
-sudo tar zxvf crictl-${CRICTL_VERSION}-linux-amd64.tar.gz -C /usr/local/bin
-rm -f crictl-${CRICTL_VERSION}-linux-amd64.tar.gz
+# Install crictl (amd64/arm64 based on system)
+curl -LO "https://github.com/kubernetes-sigs/cri-tools/releases/download/${CRICTL_VERSION}/crictl-${CRICTL_VERSION}-linux-${CRICTL_ARCH}.tar.gz"
+sudo tar zxvf "crictl-${CRICTL_VERSION}-linux-${CRICTL_ARCH}.tar.gz" -C /usr/local/bin
+rm -f "crictl-${CRICTL_VERSION}-linux-${CRICTL_ARCH}.tar.gz"
 
 # Configure crictl to use containerd
 cat <<EOF | sudo tee /etc/crictl.yaml
