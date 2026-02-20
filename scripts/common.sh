@@ -46,7 +46,7 @@ sudo apt-get install -y apt-transport-https ca-certificates curl gpg
 # Install containerd Runtime
 sudo apt-get install -y software-properties-common
 
-
+sudo apt-get update -y
 sudo apt-get install gnupg
 sudo install -m 0755 -d /etc/apt/keyrings
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
