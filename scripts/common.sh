@@ -5,16 +5,22 @@
 set -euxo pipefail
 
 # Kubernetes Variable Declaration
-KUBERNETES_VERSION="v1.34"
-CRICTL_VERSION="v1.34.0"
-KUBERNETES_INSTALL_VERSION="1.34.0-1.1"
+KUBERNETES_VERSION="v1.35.1"
+CRICTL_VERSION="v1.35.0"
+KUBERNETES_INSTALL_VERSION="v1.35.1"
 
 # Disable swap
 sudo swapoff -a
 
 # Keeps the swap off during reboot
-(crontab -l 2>/dev/null; echo "@reboot /sbin/swapoff -a") | crontab - || true
-sudo apt-get update -y
+# detect if crontab is installed, if not install it and add to crontab
+if ! command -v crontab &> /dev/null; then
+    sudo apt-get update -y
+    sudo apt-get install -y cron
+    (crontab -l 2>/dev/null; echo "@reboot /sbin/swapoff -a") | crontab - || true
+else
+    (crontab -l 2>/dev/null; echo "@reboot /sbin/swapoff -a") | crontab - || true
+fi
 
 # Create the .conf file to load the modules at bootup
 cat <<EOF | sudo tee /etc/modules-load.d/k8s.conf
@@ -35,23 +41,18 @@ EOF
 # Apply sysctl params without reboot
 sudo sysctl --system
 
-sudo apt-get update -y
 sudo apt-get install -y apt-transport-https ca-certificates curl gpg
 
 # Install containerd Runtime
-sudo apt-get update -y
 sudo apt-get install -y software-properties-common curl apt-transport-https ca-certificates
 
 
-
-sudo apt-get update
 sudo apt-get install ca-certificates curl gnupg
 sudo install -m 0755 -d /etc/apt/keyrings
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
 sudo chmod a+r /etc/apt/keyrings/docker.gpg
 
 echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-sudo apt-get update
 sudo apt-get install containerd.io
 
 sudo systemctl daemon-reload
@@ -81,7 +82,6 @@ case "$ARCH" in
     ;;
 esac
 
-CRICTL_VERSION="v1.35.0"
 # Install crictl
 # Install crictl (amd64/arm64 based on system)
 curl -LO "https://github.com/kubernetes-sigs/cri-tools/releases/download/${CRICTL_VERSION}/crictl-${CRICTL_VERSION}-linux-${CRICTL_ARCH}.tar.gz"
@@ -105,19 +105,19 @@ curl -fsSL https://pkgs.k8s.io/core:/stable:/$KUBERNETES_VERSION/deb/Release.key
 echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/$KUBERNETES_VERSION/deb/ /" |
     tee /etc/apt/sources.list.d/kubernetes.list
 
-sudo apt-get update -y
 sudo apt-get install -y kubelet="$KUBERNETES_INSTALL_VERSION" kubectl="$KUBERNETES_INSTALL_VERSION" kubeadm="$KUBERNETES_INSTALL_VERSION"
 
 # Prevent automatic updates for kubelet, kubeadm, and kubectl
 sudo apt-mark hold kubelet kubeadm kubectl
 
-sudo apt-get update -y
-
 # Install jq, a command-line JSON processor
 sudo apt-get install -y jq
 
-# Retrieve the local IP address of the eth0 interface and set it for kubelet
-local_ip="$(ip --json addr show eth1 | jq -r '.[0].addr_info[] | select(.family == "inet") | .local')"
+# detect network interface name for the local IP address (assuming eth0 or eth1)
+interface_name=$(ip route get 8.8.8.8 | awk -F" " '{print $5}')
+
+# Retrieve the local IP address of the interface and set it for kubelet
+local_ip="$(ip --json addr show "$interface_name" | jq -r '.[0].addr_info[] | select(.family == "inet") | .local')"
 
 # Write the local IP address to the kubelet default configuration file
 cat > /etc/default/kubelet << EOF
