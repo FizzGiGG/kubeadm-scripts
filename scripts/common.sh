@@ -122,6 +122,6 @@ interface_name=$(ip route get 8.8.8.8 | awk -F" " '{print $5}')
 local_ip="$(ip --json addr show "$interface_name" | jq -r '.[0].addr_info[] | select(.family == "inet") | .local')"
 
 # Write the local IP address to the kubelet default configuration file
-cat > /etc/default/kubelet << EOF
+sudo bash -c 'cat << EOF > /etc/default/kubelet
 KUBELET_EXTRA_ARGS=--node-ip=$local_ip
-EOF
+EOF'
