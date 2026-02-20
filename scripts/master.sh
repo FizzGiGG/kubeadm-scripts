@@ -9,17 +9,20 @@ set -euxo pipefail
 
 PUBLIC_IP_ACCESS="false"
 NODENAME=$(hostname -s)
-POD_CIDR="192.168.0.0/16"
+POD_CIDR="172.31.0.0/16"
 
 # Pull required images
 
 sudo kubeadm config images pull
 
+# detect network interface name for the local IP address (assuming eth0 or eth1)
+interface_name=$(ip route get 8.8.8.8 | awk -F" " '{print $5}')
+
 # Initialize kubeadm based on PUBLIC_IP_ACCESS
 
 if [[ "$PUBLIC_IP_ACCESS" == "false" ]]; then
     
-    MASTER_PRIVATE_IP=$(ip addr show eth1 | awk '/inet / {print $2}' | cut -d/ -f1)
+    MASTER_PRIVATE_IP=$(ip addr show "$interface_name" | awk '/inet / {print $2}' | cut -d/ -f1)
     sudo kubeadm init --apiserver-advertise-address="$MASTER_PRIVATE_IP" --apiserver-cert-extra-sans="$MASTER_PRIVATE_IP" --pod-network-cidr="$POD_CIDR" --node-name "$NODENAME" --ignore-preflight-errors Swap
 
 elif [[ "$PUBLIC_IP_ACCESS" == "true" ]]; then
@@ -41,8 +44,8 @@ sudo chown "$(id -u)":"$(id -g)" "$HOME"/.kube/config
 # Install Claico Network Plugin Network 
 
 # Install Tigera Operator and CRDs
-kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.31.3/manifests/operator-crds.yaml
-kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.31.3/manifests/tigera-operator.yaml
+sudo kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.31.3/manifests/operator-crds.yaml
+sudo kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.31.3/manifests/tigera-operator.yaml
 
 sleep 120
 
@@ -63,5 +66,5 @@ echo "Using cluster CIDR: $CLUSTER_CIDR"
 sed -i "s|cidr: 192.168.0.0/16|cidr: $CLUSTER_CIDR|g" custom-resources.yaml
 
 # Apply custom resources
-kubectl apply -f custom-resources.yaml
+sudo kubectl apply -f custom-resources.yaml
 sleep 60
