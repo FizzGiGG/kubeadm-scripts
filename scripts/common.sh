@@ -16,7 +16,7 @@ sudo swapoff -a
 # detect if crontab is installed, if not install it and add to crontab
 if ! command -v crontab &> /dev/null; then
     sudo apt-get update -y
-    sudo apt-get install -y cron
+    sudo apt-get install -y cron cron-daemon-common
     (crontab -l 2>/dev/null; echo "@reboot /sbin/swapoff -a") | crontab - || true
 else
     (crontab -l 2>/dev/null; echo "@reboot /sbin/swapoff -a") | crontab - || true
