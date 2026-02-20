@@ -44,7 +44,7 @@ sudo sysctl --system
 sudo apt-get install -y apt-transport-https ca-certificates curl gpg
 
 # Install containerd Runtime
-sudo apt-get install -y software-properties-common curl apt-transport-https ca-certificates
+sudo apt-get install -y software-properties-common
 
 
 sudo apt-get install gnupg
