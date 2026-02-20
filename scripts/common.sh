@@ -5,7 +5,7 @@
 set -euxo pipefail
 
 # Kubernetes Variable Declaration
-KUBERNETES_VERSION="v1.35.1"
+KUBERNETES_VERSION="v1.35"
 CRICTL_VERSION="v1.35.0"
 KUBERNETES_INSTALL_VERSION="v1.35.1"
 
