@@ -53,7 +53,7 @@ sleep 120
 curl -O https://raw.githubusercontent.com/projectcalico/calico/v3.31.3/manifests/custom-resources.yaml
 
 # Get cluster CIDR from kube-controller-manager
-CLUSTER_CIDR=$(kubectl -n kube-system get pod -l component=kube-controller-manager -o yaml | grep -i cluster-cidr | awk '{print $2}' | sed 's/--cluster-cidr=//')
+CLUSTER_CIDR=$(sudo kubectl -n kube-system get pod -l component=kube-controller-manager -o yaml | grep -i cluster-cidr | awk '{print $2}' | sed 's/--cluster-cidr=//')
 
 if [ -z "$CLUSTER_CIDR" ]; then
     echo "Warning: Could not detect cluster CIDR, using default 10.244.0.0/16"
