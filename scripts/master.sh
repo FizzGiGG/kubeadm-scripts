@@ -68,3 +68,12 @@ sed -i "s|cidr: 192.168.0.0/16|cidr: $CLUSTER_CIDR|g" custom-resources.yaml
 # Apply custom resources
 sudo kubectl apply -f custom-resources.yaml
 sleep 60
+
+# from Kubernetes control-plane install results, need to run this.
+if [[ $EUID -ne 0 ]]; then
+    mkdir -p "$HOME"/.kube
+    sudo cp -i /etc/kubernetes/admin.conf "$HOME"/.kube/config
+    sudo chown "$(id -u):$(id -g)" "$HOME"/.kube/config
+    exit 1
+fi
+export KUBECONFIG=/etc/kubernetes/admin.conf
