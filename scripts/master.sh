@@ -3,6 +3,12 @@
 #
 # Setup for Control Plane (Master) servers
 
+# test for root
+if [[ $EUID -ne 0 ]]; then
+    echo "Script must be run as root user. Please sudo -s or login as root and try again."
+    exit 1
+fi
+
 set -euxo pipefail
 
 # If you need public access to API server using the servers Public IP adress, change PUBLIC_IP_ACCESS to true.
@@ -70,10 +76,8 @@ sudo kubectl apply -f custom-resources.yaml
 sleep 60
 
 # from Kubernetes control-plane install results, need to run this.
-if [[ $EUID -ne 0 ]]; then
-    mkdir -p "$HOME"/.kube
-    sudo cp -i /etc/kubernetes/admin.conf "$HOME"/.kube/config
-    sudo chown "$(id -u):$(id -g)" "$HOME"/.kube/config
-    exit 1
-fi
 export KUBECONFIG=/etc/kubernetes/admin.conf
+
+# install KUBECTL metrics server for top to work
+kubectl apply -f https://raw.githubusercontent.com/techiescamp/cka-certification-guide/refs/heads/main/lab-setup/manifests/metrics-server/metrics-server.yaml
+sleep 60
