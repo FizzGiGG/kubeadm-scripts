@@ -81,3 +81,4 @@ export KUBECONFIG=/etc/kubernetes/admin.conf
 # install KUBECTL metrics server for top to work
 kubectl apply -f https://raw.githubusercontent.com/techiescamp/cka-certification-guide/refs/heads/main/lab-setup/manifests/metrics-server/metrics-server.yaml
 sleep 60
+echo "KUBECTL Metrics Server installed, you can check with: kubectl get pods -n kube-system | grep metrics-server"
